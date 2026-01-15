@@ -1,0 +1,39 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_20-5db7609d3b57b592ed619b960c0d84de9181210a",
+  "solcVersion": "0.8.20",
+  "solcLongVersion": "0.8.20+commit.a1b79de6",
+  "userSourceNameMap": {
+    "contracts/MockUSDT.sol": "project/contracts/MockUSDT.sol",
+    "contracts/SimpleLending.sol": "project/contracts/SimpleLending.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/MockUSDT.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.20;\r\n\r\ncontract MockUSDT {\r\n    string public name = \"Mock USDT\";\r\n    string public symbol = \"mUSDT\";\r\n    uint8 public decimals = 18;\r\n\r\n    uint256 public totalSupply;\r\n\r\n    mapping(address => uint256) public balanceOf;\r\n    mapping(address => mapping(address => uint256)) public allowance;\r\n\r\n    constructor() {\r\n        totalSupply = 1_000_000 ether;\r\n        balanceOf[msg.sender] = totalSupply;\r\n    }\r\n\r\n    function approve(address spender, uint256 amount) external returns (bool) {\r\n        allowance[msg.sender][spender] = amount;\r\n        return true;\r\n    }\r\n\r\n    function transfer(address to, uint256 amount) external returns (bool) {\r\n        require(balanceOf[msg.sender] >= amount, \"Insufficient balance\");\r\n        balanceOf[msg.sender] -= amount;\r\n        balanceOf[to] += amount;\r\n        return true;\r\n    }\r\n\r\n    function transferFrom(\r\n        address from,\r\n        address to,\r\n        uint256 amount\r\n    ) external returns (bool) {\r\n        require(balanceOf[from] >= amount, \"Insufficient balance\");\r\n        require(allowance[from][msg.sender] >= amount, \"Allowance exceeded\");\r\n\r\n        allowance[from][msg.sender] -= amount;\r\n        balanceOf[from] -= amount;\r\n        balanceOf[to] += amount;\r\n        return true;\r\n    }\r\n}\r\n\r\n"
+      },
+      "project/contracts/SimpleLending.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.20;\r\n\r\ninterface IERC20 {\r\n    function transferFrom(address, address, uint256) external returns (bool);\r\n    function transfer(address, uint256) external returns (bool);\r\n}\r\n\r\ncontract SimpleLending {\r\n    IERC20 public immutable token;\r\n\r\n    uint256 public constant LTV = 75; // 75%\r\n\r\n    mapping(address => uint256) public deposits;\r\n    mapping(address => uint256) public borrows;\r\n\r\n    constructor(address _token) {\r\n        token = IERC20(_token);\r\n    }\r\n\r\n    // Deposit tokens (Lend)\r\n    function deposit(uint256 amount) external {\r\n        require(amount > 0, \"Amount must be > 0\");\r\n\r\n        token.transferFrom(msg.sender, address(this), amount);\r\n        deposits[msg.sender] += amount;\r\n    }\r\n\r\n    // Borrow tokens\r\n    function borrow(uint256 amount) external {\r\n        uint256 maxBorrow = (deposits[msg.sender] * LTV) / 100;\r\n\r\n        require(\r\n            borrows[msg.sender] + amount <= maxBorrow,\r\n            \"Borrow limit exceeded\"\r\n        );\r\n\r\n        borrows[msg.sender] += amount;\r\n        token.transfer(msg.sender, amount);\r\n    }\r\n\r\n    // Repay loan\r\n    function repay(uint256 amount) external {\r\n        require(borrows[msg.sender] >= amount, \"Invalid repay amount\");\r\n\r\n        token.transferFrom(msg.sender, address(this), amount);\r\n        borrows[msg.sender] -= amount;\r\n    }\r\n\r\n    // Withdraw collateral\r\n    function withdraw(uint256 amount) external {\r\n        require(deposits[msg.sender] >= amount, \"Insufficient deposit\");\r\n\r\n        uint256 remainingDeposit = deposits[msg.sender] - amount;\r\n        uint256 maxBorrowAfter = (remainingDeposit * LTV) / 100;\r\n\r\n        require(\r\n            borrows[msg.sender] <= maxBorrowAfter,\r\n            \"Withdrawal breaks collateral\"\r\n        );\r\n\r\n        deposits[msg.sender] = remainingDeposit;\r\n        token.transfer(msg.sender, amount);\r\n    }\r\n}\r\n\r\n"
+      }
+    }
+  }
+}
